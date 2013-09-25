@@ -7,11 +7,11 @@ This script presumes an index is named typically, e.g. logstash-YYYY.MM.DD
 It will work with any name-YYYY.MM.DD or name-YYYY.MM.DD.HH type sequence
 """
 
-# TODO: Proper logging instead of just print statements, being able to configure a decent logging level.
-#       Unit tests. The code is somewhat broken up into logical parts that may be tested separately.
+# TODO: Unit tests. The code is somewhat broken up into logical parts that may be tested separately.
 #       Better error reporting?
 #       Improve the get_index_epoch method to parse more date formats. Consider renaming (to "parse_date_to_timestamp"?)
 
+import logging
 import sys
 import time
 import argparse
@@ -40,6 +40,8 @@ def make_parser():
     parser.add_argument('-d', '--days-to-keep', action='store', help='Number of days to keep.', type=int)
 
     parser.add_argument('-n', '--dry-run', action='store_true', help='If true, does not perform any changes to the Elasticsearch indices.', default=False)
+    parser.add_argument('--log-level', action='store', help="Log level to be used", default='INFO', choices='DEBUG INFO WARN ERROR CRITICAL FATAL'.split())
+    parser.add_argument('--log-verbose', action='store_true', help="Show more verbose log message, including timestamp and log level", default=False)
 
     return parser
 
@@ -57,7 +59,7 @@ def get_index_epoch(index_timestamp, separator='.'):
     return time.mktime([int(part) for part in year_month_day_optionalhour] + [0,0,0,0,0])
 
 
-def find_expired_indices(connection, days_to_keep=None, hours_to_keep=None, separator='.', prefix='logstash-', out=sys.stdout, err=sys.stderr):
+def find_expired_indices(connection, days_to_keep, hours_to_keep, separator, prefix, logger):
     """ Generator that yields expired indices.
 
     :return: Yields tuples on the format ``(index_name, expired_by)`` where index_name
@@ -70,7 +72,7 @@ def find_expired_indices(connection, days_to_keep=None, hours_to_keep=None, sepa
 
     for index_name in sorted(set(connection.get_indices().keys())):
         if not index_name.startswith(prefix):
-            print >> out, 'Skipping index due to missing prefix {0}: {1}'.format(prefix, index_name)
+            logger.info('Skipping index due to missing prefix {0}: {1}'.format(prefix, index_name))
             continue
 
         unprefixed_index_name = index_name[len(prefix):]
@@ -80,7 +82,7 @@ def find_expired_indices(connection, days_to_keep=None, hours_to_keep=None, sepa
 
         # perform some basic validation
         if len(parts) < 3 or len(parts) > 4 or not all([item.isdigit() for item in parts]):
-            print >> err, 'Could not find a valid timestamp from the index: {0}'.format(index_name)
+            logger.warning('Could not find a valid timestamp from the index: {0}'.format(index_name))
             continue
 
         # find the cutoff. if we have more than 3 parts in the timestamp, the timestamp includes the hours and we
@@ -92,7 +94,7 @@ def find_expired_indices(connection, days_to_keep=None, hours_to_keep=None, sepa
         # but the cutoff might be none, if the current index only has three parts (year.month.day) and we're only
         # removing hourly indices:
         if cutoff is None:
-            print >> out, 'Skipping {0} because it is of a type (hourly or daily) that I\'m not asked to delete.'.format(index_name)
+            logger.info('Skipping {0} because it is of a type (hourly or daily) that I\'m not asked to delete.'.format(index_name))
             continue
 
         index_epoch = get_index_epoch(unprefixed_index_name)
@@ -102,7 +104,19 @@ def find_expired_indices(connection, days_to_keep=None, hours_to_keep=None, sepa
             yield index_name, cutoff-index_epoch
 
         else:
-            print >> out, '{0} is {1} above the cutoff.'.format(index_name, timedelta(seconds=index_epoch-cutoff))
+            logger.info('{0} is {1} above the cutoff.'.format(index_name, timedelta(seconds=index_epoch-cutoff)))
+
+
+def get_logger(log_level, verbose):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_level)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    if verbose:
+        formatter = logging.Formatter('[%(name)s:%(levelname)s] %(asctime)s: %(message)s')
+        handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
 
 def main():
@@ -110,39 +124,40 @@ def main():
 
     parser = make_parser()
     arguments = parser.parse_args()
+    logger = get_logger(arguments.log_level, arguments.log_verbose)
 
     if not arguments.hours_to_keep and not arguments.days_to_keep:
-        print >> sys.stderr, 'Invalid arguments: You must specify either the number of hours or the number of days to keep.'
+        logger.error('Invalid arguments: You must specify either the number of hours or the number of days to keep.')
         parser.print_help()
         return
 
     connection = pyes.ES('{0}:{1}'.format(arguments.host, arguments.port), timeout=arguments.timeout)
 
     if arguments.days_to_keep:
-        print 'Deleting daily indices older than {0} days.'.format(arguments.days_to_keep)
+        logger.info('Deleting daily indices older than {0} days.'.format(arguments.days_to_keep))
     if arguments.hours_to_keep:
-        print 'Deleting hourly indices older than {0} hours.'.format(arguments.hours_to_keep)
+        logger.info('Deleting hourly indices older than {0} hours.'.format(arguments.hours_to_keep))
 
-    print ''
+    logger.info('')
 
-    for index_name, expired_by in find_expired_indices(connection, arguments.days_to_keep, arguments.hours_to_keep, arguments.separator, arguments.prefix):
+    for index_name, expired_by in find_expired_indices(connection, arguments.days_to_keep, arguments.hours_to_keep, arguments.separator, arguments.prefix, logger):
         expiration = timedelta(seconds=expired_by)
 
         if arguments.dry_run:
-            print 'Would have attempted deleting index {0} because it is {1} older than the calculated cutoff.'.format(index_name, expiration)
+            logger.info('Would have attempted deleting index {0} because it is {1} older than the calculated cutoff.'.format(index_name, expiration))
             continue
 
-        print 'Deleting index {0} because it was {1} older than cutoff.'.format(index_name, expiration)
+        logger.info('Deleting index {0} because it was {1} older than cutoff.'.format(index_name, expiration))
 
         deletion = connection.delete_index_if_exists(index_name)
         # ES returns a dict on the format {u'acknowledged': True, u'ok': True} on success.
         if deletion.get('ok'):
-            print 'Successfully deleted index: {0}'.format(index_name)
+            logger.info('Successfully deleted index: {0}'.format(index_name))
         else:
-            print 'Error deleting index: {0}. ({1})'.format(index_name, deletion)
+            logger.error('Error deleting index: {0}. ({1})'.format(index_name, deletion))
 
-    print ''
-    print 'Done in {0}.'.format(timedelta(seconds=time.time()-start))
+    logger.info('')
+    logger.info('Done in {0}.'.format(timedelta(seconds=time.time()-start)))
 
 
 if __name__ == '__main__':
