@@ -5,10 +5,10 @@ Delete logstash indexes older than n days from ElasticSearch.
 
 ::
 
-  $ ./logstash_index_cleaner.py -h
-  usage: logstash_index_cleaner.py [-h] [-v] [--host HOST] [--port PORT]
-                                   [-t TIMEOUT] [-p PREFIX] [-s SEPARATOR]
-                                   [-H HOURS_TO_KEEP] [-d DAYS_TO_KEEP] [-n]
+  $ logstash-index-cleaner -h
+  usage: logstash-index-cleaner [-h] [-v] [--host HOST] [--port PORT]
+                                [-t TIMEOUT] [-p PREFIX] [-s SEPARATOR]
+                                [-H HOURS_TO_KEEP] [-d DAYS_TO_KEEP] [-n]
 
   Delete old logstash indices from Elasticsearch.
 
@@ -30,7 +30,6 @@ Delete logstash indexes older than n days from ElasticSearch.
                           Number of days to keep.
     -n, --dry-run         If true, does not perform any changes to the
                           Elasticsearch indices.
-
 
 
 

@@ -1,16 +1,12 @@
 #!/usr/bin/env python
-#
-# Deletes all indices with a datestamp older than "days-to-keep" for daily
-# if you have hourly indices, it will delete all of those older than "hours-to-keep"
-#
-# This script presumes an index is named typically, e.g. logstash-YYYY.MM.DD
-# It will work with any name-YYYY.MM.DD or name-YYYY.MM.DD.HH type sequence
-#
-# Requires python and the following dependencies (all pip/easy_installable):
-#
-# pyes (python elasticsearch bindings, which might need simplejson)
-# argparse (built-in in python2.7 and higher, python 2.6 and lower will have to easy_install it)
-#
+"""
+Deletes all indices with a datestamp older than "days-to-keep" for daily
+if you have hourly indices, it will delete all of those older than "hours-to-keep"
+
+This script presumes an index is named typically, e.g. logstash-YYYY.MM.DD
+It will work with any name-YYYY.MM.DD or name-YYYY.MM.DD.HH type sequence
+"""
+
 # TODO: Proper logging instead of just print statements, being able to configure a decent logging level.
 #       Unit tests. The code is somewhat broken up into logical parts that may be tested separately.
 #       Better error reporting?
@@ -24,7 +20,7 @@ from datetime import timedelta
 import pyes
 
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 
 def make_parser():
