@@ -1,101 +1,49 @@
-logstash-elasticsearch-scripts
-==============================
+logstash-index-cleaner
+======================
 
-Management scripts for Logstash over ES
+Delete logstash indexes older than n days from ElasticSearch.
 
- * logstash_index_optimize.py : Optimizing logstash indexes newer than n days.
- * logstash_index_cleaner.py : Delete logstash indexes older than n days.
+::
+
+  $ ./logstash_index_cleaner.py -h
+  usage: logstash_index_cleaner.py [-h] [-v] [--host HOST] [--port PORT]
+                                   [-t TIMEOUT] [-p PREFIX] [-s SEPARATOR]
+                                   [-H HOURS_TO_KEEP] [-d DAYS_TO_KEEP] [-n]
+
+  Delete old logstash indices from Elasticsearch.
+
+  optional arguments:
+    -h, --help            show this help message and exit
+    -v, --version         show program's version number and exit
+    --host HOST           Elasticsearch host.
+    --port PORT           Elasticsearch port
+    -t TIMEOUT, --timeout TIMEOUT
+                          Elasticsearch timeout
+    -p PREFIX, --prefix PREFIX
+                          Prefix for the indices. Indices that do not have this
+                          prefix are skipped.
+    -s SEPARATOR, --separator SEPARATOR
+                          Time unit separator
+    -H HOURS_TO_KEEP, --hours-to-keep HOURS_TO_KEEP
+                          Number of hours to keep.
+    -d DAYS_TO_KEEP, --days-to-keep DAYS_TO_KEEP
+                          Number of days to keep.
+    -n, --dry-run         If true, does not perform any changes to the
+                          Elasticsearch indices.
 
 
-logstash_index_optimize.py
---------------------------
 
-Optimise all the indexes newer that argv. Ex:
 
-```
-$ ./logstash_index_optimize.py -d 5
-Optimizing daily indices newer than 5 days.
+Project history
+---------------
 
-Optimizing index logstash-2012.10.27 because it is 2 days, 12:46:23.759359 newer than cutoff.
-Successfully optimized index: logstash-2012.10.29
-Optimizing index logstash-2012.10.28 because it is 3 days, 12:46:23.759359 newer than cutoff.
-Successfully optimized index: logstash-2012.10.29
-Optimizing index logstash-2012.10.29 because it is 4 days, 12:46:23.759359 newer than cutoff.
-Successfully optimized index: logstash-2012.10.29
+This is a fork of https://github.com/crashdump/logstash-elasticsearch-scripts.
 
-Done in 0:00:18.505136.
-```
+Since ElasticSearch 0.90 all fields are compressed, and some benchmarks show that
+nothing improves optimizing those already compressed indices. That's why this fork
+does not include the original `logstash_index_optimize.py`
 
-```
-$ ./logstash_index_optimize.py -h
-usage: logstash_index_optimize.py [-h] [-v] [--host HOST] [--port PORT]
-                                  [-t TIMEOUT] [-p PREFIX] [-s SEPARATOR]
-                                  [-H HOURS_TO_OPTIMIZE] [-d DAYS_TO_OPTIMIZE]
-                                  [-n]
+Optimizations references:
 
-Optimize logstash indices from Elasticsearch.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  --host HOST           Elasticsearch host.
-  --port PORT           Elasticsearch port
-  -t TIMEOUT, --timeout TIMEOUT
-                        Elasticsearch timeout
-  -p PREFIX, --prefix PREFIX
-                        Prefix for the indices. Indices that do not have this
-                        prefix are skipped.
-  -s SEPARATOR, --separator SEPARATOR
-                        Time unit separator
-  -H HOURS_TO_OPTIMIZE, --hours-to-optimize HOURS_TO_OPTIMIZE
-                        Number of hours to optimize.
-  -d DAYS_TO_OPTIMIZE, --days-to-optimize DAYS_TO_OPTIMIZE
-                        Number of days to optimize.
-  -n, --dry-run         If true, does not perform any changes to the
-                        Elasticsearch indices.
-```
-
-logstash_index_optimize.py
---------------------------
-
-Delete the indexes older than argv. Ex:
-
-```
-$ ./logstash_index_cleaner.py -d 365
-Deleting daily indices older than 365 days.
-
-logstash-2012.10.27 is 362 days, 12:42:45.724690 above the cutoff.
-logstash-2012.10.28 is 363 days, 12:42:45.724690 above the cutoff.
-logstash-2012.10.29 is 364 days, 12:42:45.724690 above the cutoff.
-
-Done in 0:00:00.038624.
-```
-
-```
-$ ./logstash_index_cleaner.py -h
-usage: logstash_index_cleaner.py [-h] [-v] [--host HOST] [--port PORT]
-                                 [-t TIMEOUT] [-p PREFIX] [-s SEPARATOR]
-                                 [-H HOURS_TO_KEEP] [-d DAYS_TO_KEEP] [-n]
-
-Delete old logstash indices from Elasticsearch.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         show program's version number and exit
-  --host HOST           Elasticsearch host.
-  --port PORT           Elasticsearch port
-  -t TIMEOUT, --timeout TIMEOUT
-                        Elasticsearch timeout
-  -p PREFIX, --prefix PREFIX
-                        Prefix for the indices. Indices that do not have this
-                        prefix are skipped.
-  -s SEPARATOR, --separator SEPARATOR
-                        Time unit separator
-  -H HOURS_TO_KEEP, --hours-to-keep HOURS_TO_KEEP
-                        Number of hours to keep.
-  -d DAYS_TO_KEEP, --days-to-keep DAYS_TO_KEEP
-                        Number of days to keep.
-  -n, --dry-run         If true, does not perform any changes to the
-                        Elasticsearch indices.
-```
-
+* https://github.com/logstash/logstash/wiki/Elasticsearch-Storage-Optimization
+* https://github.com/jordansissel/experiments/tree/master/elasticsearch/disk
