@@ -131,7 +131,7 @@ def main():
         parser.print_help()
         return
 
-    connection = pyes.ES('{0}:{1}'.format(arguments.host, arguments.port), timeout=arguments.timeout)
+    connection = pyes.ES(server=[('http',arguments.host, arguments.port)], timeout=arguments.timeout)
 
     if arguments.days_to_keep:
         logger.info('Deleting daily indices older than {0} days.'.format(arguments.days_to_keep))
